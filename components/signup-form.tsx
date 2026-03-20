@@ -50,7 +50,8 @@ const signupSchema = z.object({
 type SignupFormValues = z.infer<typeof signupSchema>;
 
 export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
-  const [generalError, setGeneralError] = useState("");
+  const [errorStatus, setErrorStatus] = useState<"" | "already-registered" | "other-error">("");
+  const [errorMessage, setErrorMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
@@ -66,9 +67,10 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
     },
   });
 
-  // 3. Submit Handler for Email/Password
+  // 3. Submit Handler
   const onSubmit = async (values: SignupFormValues) => {
-    setGeneralError("");
+    setErrorStatus("");
+    setErrorMessage("");
     setIsLoading(true);
 
     try {
@@ -76,11 +78,11 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
       await updateProfile(userCredential.user, { displayName: values.name });
       router.push("/");
     } catch (err: any) {
-      // Pesan error yang lebih kontekstual dan actionable
       if (err.code === "auth/email-already-in-use") {
-        setGeneralError("This email address is already registered. Please sign in instead.");
+        setErrorStatus("already-registered");
       } else {
-        setGeneralError("We couldn't create your account right now. Please try again later.");
+        setErrorStatus("other-error");
+        setErrorMessage("We couldn't create your account right now. Please try again later.");
       }
     } finally {
       setIsLoading(false);
@@ -89,7 +91,8 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
 
   // 4. Google Sign-In Handler
   const handleGoogleSignIn = async () => {
-    setGeneralError("");
+    setErrorStatus("");
+    setErrorMessage("");
     setIsLoading(true);
     const provider = new GoogleAuthProvider();
 
@@ -98,7 +101,8 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
       router.push("/");
     } catch (err: any) {
       if (err.code !== "auth/popup-closed-by-user") {
-        setGeneralError("Google sign-up was interrupted. Please try again.");
+        setErrorStatus("other-error");
+        setErrorMessage("Google sign-up was interrupted. Please try again.");
       }
     } finally {
       setIsLoading(false);
@@ -115,13 +119,26 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
       </CardHeader>
       <CardContent>
         
-        {/* MURNI SHADCN: Alert untuk Error Pendaftaran */}
-        {generalError && (
+        {/* ALERT: Text with clickable "sign in" link */}
+        {errorStatus !== "" && (
           <Alert variant="destructive" className="mb-6">
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>Registration Failed</AlertTitle>
             <AlertDescription>
-              {generalError}
+              {errorStatus === "already-registered" ? (
+                <span>
+                  This email address is already registered. Please{" "}
+                  <a 
+                    href="/login" 
+                    className="font-semibold underline underline-offset-4 hover:opacity-80 transition-opacity"
+                  >
+                    sign in
+                  </a>{" "}
+                  instead.
+                </span>
+              ) : (
+                errorMessage
+              )}
             </AlertDescription>
           </Alert>
         )}
@@ -129,7 +146,6 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
         <form onSubmit={form.handleSubmit(onSubmit)}>
           <FieldGroup>
             
-            {/* FULL NAME */}
             <Controller
               name="name"
               control={form.control}
@@ -149,7 +165,6 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
               )}
             />
 
-            {/* EMAIL */}
             <Controller
               name="email"
               control={form.control}
@@ -170,7 +185,6 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
               )}
             />
 
-            {/* PASSWORD */}
             <Controller
               name="password"
               control={form.control}
@@ -190,7 +204,6 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
               )}
             />
 
-            {/* CONFIRM PASSWORD */}
             <Controller
               name="confirmPassword"
               control={form.control}
@@ -210,7 +223,6 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
               )}
             />
 
-            {/* ACTION BUTTONS */}
             <FieldGroup className="mt-2">
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? "Creating Account..." : "Create Account"}
